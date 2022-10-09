@@ -2,7 +2,8 @@
 
 _dipset() {
 	_0() {
-		echo "USAGE:         whatevs | ${0##*\/} 'EXPRESSION'..."
+		echo 'USAGE:'
+		echo "         whatevs | ${0##*\/} 'EXPRESSION'..."
 		echo ""
 		echo "'EXPRESSIONS'"
 		echo '            (executed in the order they were passed)'
