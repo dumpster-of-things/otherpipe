@@ -1,7 +1,7 @@
 # otherpipe
 ## aka: `op` `2>/dev/null`
 
-### an over-powered off-putting out-putter through the other pipe.
+### over-powered; perhaps off-putting.
 
 ### Exposes some of bash's built-ins for use out'tha pipe.
 
