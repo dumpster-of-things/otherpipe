@@ -2,10 +2,6 @@
 
 _dipset() {
 	_0() {
-		echo "Presenting, the over powered outputer, OtherPipe"
-		echo "Exposes some of bash's built-ins for use out'tha pipe with 2 to /dev/null."
-		echo "Allows one to chain builtin-ins into custom macro 'expressions', out'tha pipe with 2 to /dev/null."
-		echo ""
 		echo "USAGE:         whatevs | ${0##*\/} 'EXPRESSION'..."
 		echo ""
 		echo "'EXPRESSIONS'"
