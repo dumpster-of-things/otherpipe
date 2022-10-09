@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+_dipset() {
+	_0() {
+		echo "Presenting, the over powered outputer, OtherPipe"
+		echo "Exposes some of bash's built-ins for use out'tha pipe with 2 to /dev/null."
+		echo "Allows one to chain builtin-ins into custom macro 'expressions', out'tha pipe with 2 to /dev/null."
+		echo ""
+		echo "USAGE:         whatevs | ${0##*\/} 'EXPRESSION'..."
+		echo ""
+		echo "'EXPRESSIONS'"
+		echo '            (executed in the order they were passed)'
+		echo "            (built-ins do what you'd expect)"
+		echo "   ':N'    :   bash built-in. after #N (inclusive)"
+		echo "   '::N'   :   bash built-in. up to #N (inclusive)"
+		echo "   ':N:N'  :   bash built-in. (range) from #Na to #Nb"
+		echo "   '%*'    :   bash built-in. preceding first of ..."
+		echo "   '%%*'   :   bash built-in. preceding all of"
+		echo "   '#*'    :   bash built-in. after first of ..."
+		echo "   '##*'   :   bash built-in. after any/all of ..."
+		echo "   '/*/*'  :   bash built-in. replace first of ... with ..."
+		echo "   '//*/*' :   bash built-in. replace any/all of ... with ..."
+		echo "   ','   	 :   bash built-in. '/[:upper:]/[:lower:]'"
+		echo "   '^'     :   bash built-in. '/[:lower:]/[:upper:]'"
+		echo "   ',,'    :   bash built-in. '//[:upper:]/[:lower:]'"
+		echo "   '^^'    :   bash built-in. '//[:lower:]/[:upper:]'"
+		echo ""
+		echo "   -[BP],"
+		echo "     --before,"
+		echo "     --prepend"
+		echo "   '(*)._'    :   Prepend _ with *"
+		echo ""
+		echo "   -A,"
+		echo "     --after,"
+		echo "     --append"
+		echo "   '_.(*)'    :   Append * to _"
+		echo ""
+		echo "   '??[=/~]_'     :   Supress lines not [ exactly / fuzzily ]-matching *"
+		echo "   '?![=/~]_'     :   Supress lines [ exactly / fuzzily ]-matching *"
+		echo ""
+		echo "   '??[=/~]*.{expression}' :   Apply .{expression} only to lines [ exactly / fuzzily ]-matching *"
+		echo "   '?![=/~]*.{expression}' :   Apply .{expression} only to lines not [ exactly / fuzzily ]-matching *"
+		echo ""
+		echo "   '{N}.*'   :   Repeat * N times."
+		echo ""
+		echo "MODES:"
+		echo '   -n   : include the originating line number on output.'
+		echo '    -nn : also include a count of the output itself.'
+		echo '    ^aka:   --debug'
+	}
+	1() { echo "" ; echo "...so you ended up here, huh?" ; echo "something involving newlines not behaving as you'd expect, perhaps?" ; echo "listen friend, when in doubt: try piping it to the other '${0##*\/}'" ; }
+	_${1:-0}
+	exit ${1:-0}
+}
+
+#[[ "$(shopt | grep extglob | cut -f2)" == "on" ]] || shopt -s extglob
+case "${1}" in
+\-[hH]|'--help') _dipset ;;
+\-[nN]*) OP_MODE="${1//[!nN]/}" ;;
+'--debug') OP_MODE="debug" ;;
+*) OP_MODE="normal"
+esac
+#if [[ -f "${!#-1}" ]]; then
+#	cat "${!#-1}" - | $0 ${@::$#} ; exit $?
+#fi
+
+declare -g String
+declare -ga Strings
+
+literal() {
+	_0() { [[ "${String}" == ${@} ]] ; }
+	_1() { [[ "${String}" != ${@} ]] ; }
+	_${1} "${@:2}"
+}
+
+tangential() {
+	_0() { [[ "${String}" == *"${@}"* || "${@}" == *"${String}"* || "${String}" == *${@}* || ${@} == *"${String}"* ]] ; }
+	_1() { [[ "${String}" != *"${@}"* && "${@}" != *"${String}"* && "${String}" != *${@}* && ${@} != *"${String}"* ]] ; }
+	_${1} "${@:2}"
+}
+
+N=0
+OP_LIN=0
+while read line ; do
+	((++OP_LIN)) && String="${line}"
+	for ((a=1;a<=$#;a++)); do
+		case "${!a}" in
+		\/*[!\/]*\/*"$'\n'"*) eval Strings\=\( \$\{String"${!a}"\} \) ; unset String ;;
+		[\_\.]\(*\)) String="${String}${!a:2: -1}" ;;
+		\-[bB]*|\-\-[bp][er][fe][op][re][en]*) [[ -z "${!a/*\=*/}" ]] || ((++a)) ; String="${!a#*\=}${String}" ;;
+		\(*\)[\.\_]) String="${!a:1: -2}${String}" ;;
+		\-[aA]|\-\-a[pf][pt][e][nr]*) [[ -z "${!a/*\=*/}" ]] || ((++a)) ; String="${String}${!a#*\=}" ;;
+		'-[cC]'|'--color'*) [[ -z "${!a//*\=*}" ]] || ((++a)) ; String=$(echo -e "\e[${!a#*\=}m${String}\e[0m") ;;
+		\?\?\=*[!\}]) literal "0" "${!a:3}" || { unset String ; break ; } ;;
+		\?\!\=*[!\}]) literal "1" "${!a:3}" || { unset String ; break ; } ;;
+		\?\?\~*[!\}]) tangential "0" "${!a:3}" || { unset String ; break ; } ;;
+		\?\!\~*[!\}]) tangential "1" "${!a:3}" || { unset String ; break ; } ;;
+		\?\?\=*\.\{*\}) Reaction="${!a#*\.\{}" && literal "1" "${!a:3: -${#Reaction}-2}" || eval String\=\$\{String"${Reaction:: -1}"\} ;;
+		\?\!\=*\.\{*\}) Reaction="${!a#*\.\{}" && literal "0" "${!a:3: -${#Reaction}-2}" || eval String\=\$\{String"${Reaction:: -1}"\} ;;
+		\?\?\~*\.\{*\}) Reaction="${!a#*\.\{}" && tangential "1" "${!a:3: -${#Reaction}-2}" || eval String\=\$\{String"${Reaction:: -1}"\} ;;
+		\?\!\~*\.\{*\}) Reaction="${!a#*\.\{}" && tangential "0" "${!a:3: -${#Reaction}-2}" || eval String\=\$\{String"${Reaction:: -1}"\} ;;
+		*)
+			if [[ -f "${!a}" ]]; then
+				echo "${String}" | cat - "$(realpath ${!a})" | $0 "${@:a+1}" ; exit $?
+			else
+				if [[ "${!a}" == \{+([[:digit:]])\}\.* ]]; then
+					rp="${!a%%\}*}" && ((rt=(${rp:1} + 0)))
+					for ((ri=0;ri<rt;ri++)); do
+						String=$(echo "${String}" | $0 "${!a#*\}\.}")
+					done
+					unset rp rt ri
+				else
+					eval String\=\$\{String"${!a}"\}
+				fi
+			fi
+		esac
+		if (( ${#Strings[@]} > 1 )); then
+			for ((i=0;i<${#Strings[@]};i++)); do
+				echo "${Strings[i]}" | $0 ${@:$a+1}
+			done
+			unset Strings[*]
+			continue
+		fi
+		(( ${#String} > 0 )) || break
+	done
+	if [[ "${OP_MODE}" == "normal" ]]; then
+		(( $# == 0 )) && echo "${line}" || { [[ -z "${String:-}" ]] || echo "${String}" ; }
+	else
+		if [[ -z "${String:-}" ]]; then
+			(( $# == 0 )) && echo "${line}" || { [[ -z "${String:-}" ]] || echo "${String}" ; }
+		else
+			#((Mode=${#OP_MODE}>3?3:${#OP_MODE})) 
+			if [[ "${OP_MODE}" == "debud" ]]; then
+				echo "${OP_LIN}:'${line}', $((++N)):'${String}'"
+				continue
+			fi
+			if (( ${#OP_MODE} > 1 )); then
+				echo "${OP_LIN} $((++N)) '${String}'"
+			else
+				echo "${OP_LIN} '${String}'"
+			fi
+		fi
+	fi
+done < <([ -t 0 ] || cat - )
